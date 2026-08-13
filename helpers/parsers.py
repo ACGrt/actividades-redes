@@ -16,12 +16,6 @@ def parse_HTTP_message(http_message:bytes):
 
     return method, path, version, headers
 
-def contains_end_of_message(message:str, end_sequence:str):
-    """
-    Checks if the given message contains the specified end sequence.
-    """
-    return end_sequence in message
-
 def clean_http_message(http_message:bytes):
     """
     Cleans an HTTP message by removing everything after \r\n\r\n, 
@@ -36,32 +30,31 @@ def clean_http_message(http_message:bytes):
 
 
 def receive_full_header(connection_socket, buff_size, end_sequence):
-    recv_message= connection_socket.recv(buff_size)
-    
-    full_message = recv_message
+    """
+    Retorna los headers y el body que se infiltró
+    """
+    full_message = b''
 
-    is_end_of_message = contains_end_of_message(full_message.decode(), end_sequence)
-
-    print("Entrando al while")
-    while not is_end_of_message:
+    while end_sequence not in full_message:
         recv_message = connection_socket.recv(buff_size)
         full_message += recv_message
-        print(full_message.decode())
-        is_end_of_message = contains_end_of_message(full_message.decode(), end_sequence)
 
-    print("Limpieando mensaje")
-    full_message = clean_http_message(full_message)
-    return full_message
+    cut = full_message.find(end_sequence) + len(end_sequence)
+    headers = full_message[:cut]
+    body_infiltrado = full_message[cut:]
+    return full_message, body_infiltrado
 
-def receive_full_body(connection_socket, buff_size, content_length):
+def receive_full_body(connection_socket, buff_size, content_length, body_infiltrado):
     """
     Receives the full body of an HTTP message based on the specified content length.
+    And adds the missing part that the receive_full_header function returns.
     """
     full_body = b''
-    bytes_received = 0
+    bytes_received = len(body_infiltrado)
     if content_length == 0:
         return full_body
 
+    full_body += body_infiltrado
 
     while bytes_received < content_length:
         print(f"Recibiendo body, bytes recibidos: {bytes_received}, content_length: {content_length}")

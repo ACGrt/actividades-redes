@@ -22,7 +22,7 @@ HOST = '0.0.0.0'
 PORT = 8080
 
 buff_size = 10
-end_of_message = "\r\n\r\n"
+end_of_message = b'\r\n\r\n'
 
 proxy_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 proxy_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -36,7 +36,7 @@ while True:
     client_connection, client_address = proxy_socket.accept()
     print(f" Conexion entrante desde {client_address}")
 
-    recv_message = receive_full_header(client_connection, buff_size, end_of_message)
+    recv_message, body_infiltrado = receive_full_header(client_connection, buff_size, end_of_message)
 
     client_method, client_path, client_version, client_headers = parse_HTTP_message(recv_message)
     host_destino = client_headers["Host"]
@@ -55,7 +55,7 @@ while True:
             </body>
             </html>
             """
-        body += end_of_message
+
         server_bytes = (header + body).encode()
         client_connection.send(server_bytes)
         client_connection.close()
@@ -71,7 +71,7 @@ while True:
     server_socket.send(modified_client_bytes)
 
     #Esto es un POST, así que para recibir el body debemos fijarnos en el Content-Length
-    server_headers= receive_full_header(server_socket, buff_size, end_of_message) # se obtiene el header
+    server_headers, body_infiltrado = receive_full_header(server_socket, buff_size, end_of_message) # se obtiene el header
 
     print("Headers del servidor:")
     print(server_headers.decode())
@@ -80,7 +80,7 @@ while True:
     server_method, server_path, server_version, server_headers_dict = parse_HTTP_message(server_headers)
     content_length = int(server_headers_dict.get("Content-Length", 0))
     print(content_length)
-    server_body = receive_full_body(server_socket, buff_size, content_length)
+    server_body = receive_full_body(server_socket, buff_size, content_length, body_infiltrado)
 
     # Armamos la respuesta completa del servidor, que incluye el header y el body
     server_bytes = server_headers + server_body
