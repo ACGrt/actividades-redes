@@ -2,9 +2,9 @@ import base64
 import socket
 import sys
 import json
-from helpers.blockers import check_blocked_hosts
+from helpers.blockers import check_blocked_hosts, replace_forbidden_words
 from helpers.createMSG import create_HTTP_message
-from helpers.parsers import parse_HTTP_message
+from helpers.parsers import parse_HTTP_message, receive_full_body, receive_full_header
 
 
 
@@ -21,6 +21,9 @@ with open("cat.jpg", "rb") as image_file:
 HOST = '0.0.0.0'
 PORT = 8080
 
+buff_size = 10
+end_of_message = "\r\n\r\n"
+
 proxy_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 proxy_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 proxy_socket.bind((HOST,PORT))
@@ -33,9 +36,9 @@ while True:
     client_connection, client_address = proxy_socket.accept()
     print(f" Conexion entrante desde {client_address}")
 
-    client_bytes = client_connection.recv(2048)
-        
-    client_method, client_path, client_version, client_headers = parse_HTTP_message(client_bytes)
+    recv_message = receive_full_header(client_connection, buff_size, end_of_message)
+
+    client_method, client_path, client_version, client_headers = parse_HTTP_message(recv_message)
     host_destino = client_headers["Host"]
 
     print(f"Host destino: {host_destino}")
@@ -43,7 +46,6 @@ while True:
 
     if check_blocked_hosts(client_path, configuration["blocked"]):
         print(f"Path bloqueado: {client_path}")
-        #Enviamos error 403 y la imagen local en formato HTML
 
         header = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\n\r\n"
         body = f"""
@@ -53,6 +55,7 @@ while True:
             </body>
             </html>
             """
+        body += end_of_message
         server_bytes = (header + body).encode()
         client_connection.send(server_bytes)
         client_connection.close()
@@ -66,8 +69,23 @@ while True:
     modified_client_bytes = create_HTTP_message(client_method, client_path, client_version, client_headers)
 
     server_socket.send(modified_client_bytes)
-    server_bytes= server_socket.recv(2048)
 
+    #Esto es un POST, así que para recibir el body debemos fijarnos en el Content-Length
+    server_headers= receive_full_header(server_socket, buff_size, end_of_message) # se obtiene el header
 
-    client_connection.send(server_bytes)
+    print("Headers del servidor:")
+    print(server_headers.decode())
+
+    # falta obtener el body del POST, si es que lo hay. Para eso se debe leer el Content-Length del header y leer esa cantidad de bytes del socket.
+    server_method, server_path, server_version, server_headers_dict = parse_HTTP_message(server_headers)
+    content_length = int(server_headers_dict.get("Content-Length", 0))
+    print(content_length)
+    server_body = receive_full_body(server_socket, buff_size, content_length)
+
+    # Armamos la respuesta completa del servidor, que incluye el header y el body
+    server_bytes = server_headers + server_body
+    
+    purified_response = replace_forbidden_words(server_bytes.decode(), configuration["forbidden_words"])
+
+    client_connection.send(purified_response.encode())
     client_connection.close()
