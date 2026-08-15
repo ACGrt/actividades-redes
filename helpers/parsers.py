@@ -1,7 +1,13 @@
 def parse_HTTP_message(http_message:bytes):
     """
-    Parses an HTTP message and transforms it into a data structure
-    for easier access.
+    Splits the head of an HTTP message into its components.
+
+    Works for both requests and responses, since the request line
+    ("GET /path HTTP/1.1") and the status line ("HTTP/1.1 404 Not Found")
+    both have three space-separated fields. Lines without a colon are ignored.
+
+    Returns a (method, path, version, headers) tuple, where the first three
+    are the fields of the first line and headers is a name -> value dict.
     """
     http_message = http_message.decode()
     lines = http_message.splitlines()
@@ -16,22 +22,22 @@ def parse_HTTP_message(http_message:bytes):
 
     return method, path, version, headers
 
-def clean_http_message(http_message:bytes):
-    """
-    Cleans an HTTP message by removing everything after \r\n\r\n, 
-    which indicates the end of the headers.
-    """
-    http_message = http_message.decode()
-    end_of_headers_index = http_message.find("\r\n\r\n")
-    if end_of_headers_index != -1:
-        return http_message[:end_of_headers_index + 4].encode()
-    
-    return http_message.encode()
-
-
 def receive_full_header(connection_socket, buff_size, end_sequence):
-    """
-    Retorna los headers y el body que se infiltró
+    r"""
+    Reads the head of an HTTP message from a socket, no matter how small
+    the buffer is.
+
+    Every read is appended to an accumulator and the end sequence (\r\n\r\n)
+    is searched for in that accumulator, not in the last read, so the
+    delimiter is still found when it is split across two reads.
+
+    Reading in fixed-size blocks means the last read usually overshoots the
+    delimiter and pulls in the first bytes of the body. Those bytes cannot be
+    put back into the socket, so they are returned separately and must be
+    handed over to receive_full_body.
+
+    Returns a (headers, body_infiltrado) tuple of bytes. Stops early if the
+    peer closes the connection, in which case headers may be incomplete.
     """
     full_message = b''
 
@@ -48,8 +54,18 @@ def receive_full_header(connection_socket, buff_size, end_sequence):
 
 def receive_full_body(connection_socket, buff_size, content_length, body_infiltrado):
     """
-    Receives the full body of an HTTP message based on the specified content length.
-    And adds the missing part that the receive_full_header function returns.
+    Reads the body of an HTTP message from a socket until content_length
+    bytes have been collected.
+
+    The body has no delimiter (any byte sequence is valid inside it), so the
+    only way to know it is complete is to count. The count starts at the
+    length of body_infiltrado, the leftover bytes receive_full_header already
+    took out of the socket; starting at zero would read content_length extra
+    bytes and block forever waiting for data that never arrives.
+
+    Returns the full body as bytes, prepending body_infiltrado. Returns empty
+    bytes when content_length is 0, since reading would also block there.
+    Stops early if the peer closes the connection.
     """
     full_body = b''
     bytes_received = len(body_infiltrado)
