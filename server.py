@@ -97,7 +97,7 @@ while True:
     # Armamos la respuesta completa del servidor, que incluye el header y el body
     server_bytes = server_headers + server_body
     
-    purified_response = replace_forbidden_words(server_bytes.decode(), configuration["forbidden_words"])
-
+    purified_response = replace_forbidden_words(server_body.decode(), configuration["forbidden_words"])
+    
     client_connection.send(purified_response.encode())
     client_connection.close()
