@@ -37,6 +37,8 @@ def receive_full_header(connection_socket, buff_size, end_sequence):
 
     while end_sequence not in full_message:
         recv_message = connection_socket.recv(buff_size)
+        if not recv_message:
+            break
         full_message += recv_message
 
     cut = full_message.find(end_sequence) + len(end_sequence)
