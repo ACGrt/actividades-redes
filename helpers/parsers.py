@@ -7,7 +7,7 @@ def parse_HTTP_message(http_message:bytes):
     lines = http_message.splitlines()
 
     request_line = lines[0]
-    method, path, version = request_line.split(' ')
+    method, path, version = request_line.split(' ', 2)
     headers ={}
     for line in lines[1:]:
         if ':' in line:
@@ -42,7 +42,7 @@ def receive_full_header(connection_socket, buff_size, end_sequence):
     cut = full_message.find(end_sequence) + len(end_sequence)
     headers = full_message[:cut]
     body_infiltrado = full_message[cut:]
-    return full_message, body_infiltrado
+    return headers, body_infiltrado
 
 def receive_full_body(connection_socket, buff_size, content_length, body_infiltrado):
     """
