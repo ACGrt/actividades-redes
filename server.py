@@ -15,11 +15,12 @@ ruta_json = sys.argv[1]
 with open(ruta_json, 'r') as archivo:
     configuration = json.load(archivo)
 
-with open("cat.jpg", "rb") as image_file:
-    imagen_codificada = base64.b64encode(image_file.read()).decode('utf-8')
-
 HOST = '0.0.0.0'
 PORT = 8080
+BLOCKED_IMAGE_PATH = "/__proxy__/blocked.jpg"
+with open("cat.jpg", "rb") as image_file:
+    imagen_bytes = image_file.read()
+
 
 buff_size = 10
 end_of_message = b'\r\n\r\n'
@@ -44,20 +45,31 @@ while True:
     print(f"Host destino: {host_destino}")
     print(f"Path destino: {client_path}")
 
+    if client_path.endswith(BLOCKED_IMAGE_PATH):
+        header = (
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: image/jpeg\r\n"
+            f"Content-Length: {len(imagen_bytes)}\r\n"
+            "Connection: close\r\n\r\n"
+        )
+        server_bytes = header.encode() + imagen_bytes
+
+        client_connection.sendall(server_bytes)
+        client_connection.close()
+        continue
+
     if check_blocked_hosts(client_path, configuration["blocked"]):
         print(f"Path bloqueado: {client_path}")
+        body = f'<html><body><img src = "{BLOCKED_IMAGE_PATH}"></body></html>'.encode()
 
-        header = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\n\r\n"
-        body = f"""
-            <html>
-            <body>
-                <img src="data:image/jpeg;base64,{imagen_codificada}">
-            </body>
-            </html>
-            """
-
-        server_bytes = (header + body).encode()
-        client_connection.send(server_bytes)
+        header = (
+            "HTTP/1.1 403 Forbidden\r\n"
+            "Content-Type: text/html; charset=utf-8\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            "Connection: close\r\n\r\n"
+        )
+        server_bytes = header.encode() + body
+        client_connection.sendall(server_bytes)
         client_connection.close()
         continue
 
