@@ -97,7 +97,16 @@ while True:
     # Armamos la respuesta completa del servidor, que incluye el header y el body
     server_bytes = server_headers + server_body
     
-    purified_response = replace_forbidden_words(server_body.decode(), configuration["forbidden_words"])
+    purified_body = replace_forbidden_words(
+        server_body.decode(), configuration["forbidden_words"]
+        ).encode()
+
+    if "Content-Length" in server_headers_dict:
+        server_headers_dict["Content-Length"] = str(len(purified_body))
+
+    response_bytes = create_HTTP_message(
+        server_method, server_path, server_version, server_headers_dict
+    ) + purified_body
     
-    client_connection.send(purified_response.encode())
+    client_connection.send(response_bytes)
     client_connection.close()
