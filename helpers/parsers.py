@@ -62,6 +62,8 @@ def receive_full_body(connection_socket, buff_size, content_length, body_infiltr
         print(f"Recibiendo body, bytes recibidos: {bytes_received}, content_length: {content_length}")
         recv_message = connection_socket.recv(buff_size)
 
+        if not recv_message:
+            break
         full_body += recv_message
         bytes_received += len(recv_message)
 
