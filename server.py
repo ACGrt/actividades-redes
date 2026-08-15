@@ -82,19 +82,16 @@ while True:
 
     server_socket.send(modified_client_bytes)
 
-    #Esto es un POST, así que para recibir el body debemos fijarnos en el Content-Length
-    server_headers, body_infiltrado = receive_full_header(server_socket, buff_size, end_of_message) # se obtiene el header
+    server_headers, body_infiltrado = receive_full_header(server_socket, buff_size, end_of_message)
 
     print("Headers del servidor:")
     print(server_headers.decode())
 
-    # falta obtener el body del POST, si es que lo hay. Para eso se debe leer el Content-Length del header y leer esa cantidad de bytes del socket.
     server_method, server_path, server_version, server_headers_dict = parse_HTTP_message(server_headers)
     content_length = int(server_headers_dict.get("Content-Length", 0))
     print(content_length)
     server_body = receive_full_body(server_socket, buff_size, content_length, body_infiltrado)
 
-    # Armamos la respuesta completa del servidor, que incluye el header y el body
     server_bytes = server_headers + server_body
     
     purified_body = replace_forbidden_words(
@@ -107,6 +104,6 @@ while True:
     response_bytes = create_HTTP_message(
         server_method, server_path, server_version, server_headers_dict
     ) + purified_body
-    
+
     client_connection.send(response_bytes)
     client_connection.close()
