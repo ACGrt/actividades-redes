@@ -1,4 +1,5 @@
 # Informe Actividad 2 - DNS
+Link a github: https://github.com/ACGrt/actividad-1-proxy
 
 Resolver DNS iterativo implementado con sockets, sin usar `dnslib`: el parseo y la
 construcción de mensajes se hacen a mano sobre los bytes del protocolo.
