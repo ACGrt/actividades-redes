@@ -1,1 +1,18 @@
 *__pycache__*
+# Restos que se cuelan si una VM monta este repo como home de usuario
+.vboxclient-*.pid
+.xsession-errors
+.Xauthority
+.ICEauthority
+.bash_logout
+.bashrc
+.bashrc.original
+.profile
+.zshrc
+.zprofile
+.face
+.sudo_as_admin_successful
+.cache/
+.config/
+.local/
+.java/
