@@ -1,4 +1,5 @@
 # SERVER
+import time
 import SocketTCP
 
 address = ("127.0.0.1", 8080)
@@ -27,3 +28,11 @@ message_part_2 = connection_socketTCP.recv(buff_size)
 print("Test 3 received:", message_part_1 + message_part_2)
 if (message_part_1 + message_part_2) == "Mensaje de largo 19".encode(): print("Test 3: Passed")
 else: print("Test 3: Failed")
+
+start = time.time()
+connection_socketTCP.recv_close()
+elapsed = time.time() - start
+print(f"recv_close finished in {elapsed:.2f}s")
+if connection_socketTCP.udp_socket.fileno() != -1: print("Close: Failed (socket still open)")
+elif elapsed >= 3 * connection_socketTCP.timeout: print("Close: Failed (final ACK never recognized)")
+else: print("Close: Passed")
